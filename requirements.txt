@@ -1,0 +1,15 @@
+pandas
+numpy
+scikit-learn
+tensorflow
+transformers
+xgboost
+lightgbm
+joblib
+matplotlib
+seaborn
+streamlit
+shap
+optuna
+json
+os
