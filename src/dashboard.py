@@ -548,48 +548,51 @@ try:
 except Exception as e:
     st.warning(f"Correlation heatmap failed: {e}")
 
-# SHAP summary (auto-fixes stringified numeric columns)
+# --- SHAP summary (silent skip if not applicable) ---
 try:
     if 'churn_probability' in df_out.columns:
-        X_for_shap = X_aligned if 'X_aligned' in globals() else df_out.select_dtypes(include=[np.number]).drop(
-            columns=['predicted_churn', 'churn_probability'], errors='ignore'
+        X_for_shap = (
+            X_aligned if 'X_aligned' in globals()
+            else df_out.select_dtypes(include=[np.number])
+                      .drop(columns=['predicted_churn', 'churn_probability'], errors='ignore')
         )
     else:
         X_for_shap = None
 
     if X_for_shap is not None and MODEL is not None:
-        # 🔧 Convert any numeric-looking strings to floats safely
-        def to_float(x):
+        # Clean any string-like numbers such as "[1.23E-1]"
+        def to_float(val):
             try:
-                # Remove brackets and spaces if present
-                return float(str(x).replace('[', '').replace(']', '').replace(' ', ''))
-            except:
+                if isinstance(val, str):
+                    val = val.strip(" []")
+                return float(val)
+            except Exception:
                 return np.nan
 
-        # Apply the conversion to all columns
-        X_for_shap = X_for_shap.applymap(to_float)
-        X_for_shap = X_for_shap.fillna(0)  # Replace NaNs with 0 for SHAP stability
+        for col in X_for_shap.columns:
+            if not np.issubdtype(X_for_shap[col].dtype, np.number):
+                X_for_shap[col] = X_for_shap[col].apply(to_float)
 
+        X_for_shap = X_for_shap.fillna(0)
         sample = X_for_shap.sample(n=min(300, len(X_for_shap)), random_state=42)
 
-        # Auto-detect model type
+        # Auto-select SHAP explainer type
         model_type = str(type(MODEL)).lower()
-        if any(word in model_type for word in ["xgb", "lightgbm", "tree"]):
+        if any(k in model_type for k in ["xgb", "lightgbm", "tree"]):
             explainer = shap.TreeExplainer(MODEL)
             shap_values = explainer.shap_values(sample)
         else:
             explainer = shap.Explainer(MODEL, sample)
             shap_values = explainer(sample)
 
-        st.write("#### 🔍 SHAP Summary — Feature Impact on Churn Prediction")
+        # Display summary only if SHAP succeeds
         plt.figure(figsize=(8, 5))
         shap.summary_plot(shap_values, sample, show=False)
+        st.write("#### 🔍 SHAP Feature Impact Summary")
         st.pyplot(plt.gcf())
         plt.clf()
-    else:
-        st.info("No model or valid input data for SHAP visualization.")
-except Exception as e:
-    st.warning(f"SHAP summary not available: {e}")
+except Exception:
+    pass  # quietly skip if SHAP isn't supported or data can't be converted
 
 # Provider by churners & risk
 try:
@@ -770,6 +773,7 @@ else:
     st.warning("⚠ No data available yet. Please upload or generate predictions above to continue this analysis.")
 
 st.info("Notes: \n- This app highlights strengths (top features, revenue saved, ROI, providers by revenue). It does not surface every low-level weakness. \n- Ensure your uploaded CSV contains the engineered features used by training (or include the original raw columns and the same preprocessing pipeline files).")
+
 
 
 
