@@ -8,7 +8,8 @@ lightgbm
 joblib
 matplotlib
 seaborn
-ploty
+plotly
 streamlit
 shap
 optuna
+
