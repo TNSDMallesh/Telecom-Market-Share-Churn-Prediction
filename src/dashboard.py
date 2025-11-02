@@ -226,14 +226,14 @@ st.markdown("---")
 # ------------------------
 comparison_df, summary = None, None
 try:
-    comparison_df = pd.read_csv("saved_models_and_results/model_comparison.csv", index_col=0)
+    comparison_df = pd.read_csv("models/model_comparison.csv", index_col=0)
 except FileNotFoundError:
     st.warning("⚠️ model_comparison.csv not found. Upload to see model performance comparison.")
 except Exception as e:
     st.error(f"Error loading comparison CSV: {e}")
 
 try:
-    with open("saved_models_and_results/best_model_summary.json", "r") as f:
+    with open("models/best_model_summary.json", "r") as f:
         summary = json.load(f)
 except FileNotFoundError:
     st.warning("⚠️ best_model_summary.json not found. Upload to see model summary.")
@@ -262,3 +262,4 @@ st.dataframe(df_out.head())
 st.info(
     "✅ Notes:\n- Handles missing files safely\n- Upload model comparison files for extended dashboard\n- Designed for Streamlit Cloud deployment"
 )
+
