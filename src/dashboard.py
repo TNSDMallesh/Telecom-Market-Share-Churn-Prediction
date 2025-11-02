@@ -548,10 +548,9 @@ try:
 except Exception as e:
     st.warning(f"Correlation heatmap failed: {e}")
 
-# SHAP summary (fixed for XGBoost and other tree-based models)
+# SHAP summary (auto-fixes stringified numeric columns)
 try:
     if 'churn_probability' in df_out.columns:
-        # Prepare SHAP input data
         X_for_shap = X_aligned if 'X_aligned' in globals() else df_out.select_dtypes(include=[np.number]).drop(
             columns=['predicted_churn', 'churn_probability'], errors='ignore'
         )
@@ -559,11 +558,23 @@ try:
         X_for_shap = None
 
     if X_for_shap is not None and MODEL is not None:
+        # 🔧 Convert any numeric-looking strings to floats safely
+        def to_float(x):
+            try:
+                # Remove brackets and spaces if present
+                return float(str(x).replace('[', '').replace(']', '').replace(' ', ''))
+            except:
+                return np.nan
+
+        # Apply the conversion to all columns
+        X_for_shap = X_for_shap.applymap(to_float)
+        X_for_shap = X_for_shap.fillna(0)  # Replace NaNs with 0 for SHAP stability
+
         sample = X_for_shap.sample(n=min(300, len(X_for_shap)), random_state=42)
 
-        # Auto-select correct explainer for tree-based or general models
+        # Auto-detect model type
         model_type = str(type(MODEL)).lower()
-        if "xgb" in model_type or "lightgbm" in model_type or "tree" in model_type:
+        if any(word in model_type for word in ["xgb", "lightgbm", "tree"]):
             explainer = shap.TreeExplainer(MODEL)
             shap_values = explainer.shap_values(sample)
         else:
@@ -576,7 +587,7 @@ try:
         st.pyplot(plt.gcf())
         plt.clf()
     else:
-        st.info("No model or input features available for SHAP visualization.")
+        st.info("No model or valid input data for SHAP visualization.")
 except Exception as e:
     st.warning(f"SHAP summary not available: {e}")
 
@@ -759,5 +770,6 @@ else:
     st.warning("⚠ No data available yet. Please upload or generate predictions above to continue this analysis.")
 
 st.info("Notes: \n- This app highlights strengths (top features, revenue saved, ROI, providers by revenue). It does not surface every low-level weakness. \n- Ensure your uploaded CSV contains the engineered features used by training (or include the original raw columns and the same preprocessing pipeline files).")
+
 
 
