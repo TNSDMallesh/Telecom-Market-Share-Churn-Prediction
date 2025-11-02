@@ -548,22 +548,35 @@ try:
 except Exception as e:
     st.warning(f"Correlation heatmap failed: {e}")
 
-# SHAP summary (requires shap and sample size guard)
+# SHAP summary (fixed for XGBoost and other tree-based models)
 try:
-    if 'churn_probability' in df_out.columns and 'service_provider' in df_out.columns:
-        X_for_shap = X_aligned if 'X_aligned' in globals() else df_out.select_dtypes(include=[np.number]).drop(columns=['predicted_churn','churn_probability'], errors='ignore')
+    if 'churn_probability' in df_out.columns:
+        # Prepare SHAP input data
+        X_for_shap = X_aligned if 'X_aligned' in globals() else df_out.select_dtypes(include=[np.number]).drop(
+            columns=['predicted_churn', 'churn_probability'], errors='ignore'
+        )
     else:
         X_for_shap = None
 
-    if X_for_shap is not None and 'MODEL' in globals():
-        sample = X_for_shap.sample(n=min(500, len(X_for_shap)), random_state=42)
-        expl = shap.Explainer(MODEL, sample)  # may raise for some models
-        shap_values = expl(sample)
-        st.write("#### SHAP summary (sample)")
-        plt.figure(figsize=(8,5))
+    if X_for_shap is not None and MODEL is not None:
+        sample = X_for_shap.sample(n=min(300, len(X_for_shap)), random_state=42)
+
+        # Auto-select correct explainer for tree-based or general models
+        model_type = str(type(MODEL)).lower()
+        if "xgb" in model_type or "lightgbm" in model_type or "tree" in model_type:
+            explainer = shap.TreeExplainer(MODEL)
+            shap_values = explainer.shap_values(sample)
+        else:
+            explainer = shap.Explainer(MODEL, sample)
+            shap_values = explainer(sample)
+
+        st.write("#### 🔍 SHAP Summary — Feature Impact on Churn Prediction")
+        plt.figure(figsize=(8, 5))
         shap.summary_plot(shap_values, sample, show=False)
         st.pyplot(plt.gcf())
         plt.clf()
+    else:
+        st.info("No model or input features available for SHAP visualization.")
 except Exception as e:
     st.warning(f"SHAP summary not available: {e}")
 
@@ -746,4 +759,5 @@ else:
     st.warning("⚠ No data available yet. Please upload or generate predictions above to continue this analysis.")
 
 st.info("Notes: \n- This app highlights strengths (top features, revenue saved, ROI, providers by revenue). It does not surface every low-level weakness. \n- Ensure your uploaded CSV contains the engineered features used by training (or include the original raw columns and the same preprocessing pipeline files).")
+
 
