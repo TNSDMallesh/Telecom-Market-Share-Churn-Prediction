@@ -415,9 +415,9 @@ st.write("### 🔎 Quick Preview of predictions")
 st.dataframe(df_out.head(10))
 
 # Load saved data
-comparison_df = pd.read_csv("saved_models_and_results/model_comparison.csv", index_col=0)
+comparison_df = pd.read_csv("models/model_comparison.csv", index_col=0)
 
-with open("saved_models_and_results/best_model_summary.json", "r") as f:
+with open("models/best_model_summary.json", "r") as f:
     summary = json.load(f)
 
 st.title("📊 Model Performance Dashboard")
@@ -746,3 +746,4 @@ else:
     st.warning("⚠ No data available yet. Please upload or generate predictions above to continue this analysis.")
 
 st.info("Notes: \n- This app highlights strengths (top features, revenue saved, ROI, providers by revenue). It does not surface every low-level weakness. \n- Ensure your uploaded CSV contains the engineered features used by training (or include the original raw columns and the same preprocessing pipeline files).")
+
